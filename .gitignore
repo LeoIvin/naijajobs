@@ -7,3 +7,4 @@ schedule.py
 .webhook_secret
 # Session notes: contains the client deployment's URLs and chat ids. Never publish.
 HANDOFF.md
+.gh_pat

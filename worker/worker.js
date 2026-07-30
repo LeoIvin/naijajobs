@@ -18,26 +18,47 @@ const MAX_MESSAGE_CHARS = 3800;
 const HELP_TEXT = `<b>NaijaJobs commands</b>
 /recent [days] — matching postings from the last N days (default 3)
 /filters — show current filters
-/addkeyword &lt;word&gt; — title must contain one of your keywords
+/companies — list tracked companies
+/subscribers — how many chats receive alerts
+/stop — unsubscribe this chat from alerts
+
+New-job alerts arrive within ~5 minutes of a posting going live.`;
+
+// Filters and the company list are still global, so the commands that mutate
+// them would let any subscriber reshape or silence everyone else's feed. Until
+// per-user filters land they're owner-only, and only the owner is told they
+// exist.
+const OWNER_HELP_TEXT = `
+
+<b>Owner commands</b> — these change the feed for every subscriber
+/addkeyword &lt;word&gt; — title must contain one of the keywords
 /delkeyword &lt;word&gt; — remove a keyword
 /addlocation &lt;place&gt; — only this location (remote jobs always pass)
 /dellocation &lt;place&gt; — remove a location
 /remote on|off — only remote postings
 /pause — stop notifications
 /resume — resume notifications
-/companies — list tracked companies
 /addcompany &lt;ats&gt; &lt;slug&gt; — track a new company board
 /delcompany &lt;ats&gt; &lt;slug&gt; — stop tracking a board
-/subscribers — how many chats receive alerts
-/stop — unsubscribe this chat from alerts
 
-ATS values: ${ATS_NAMES.join(", ")}.
-New-job alerts arrive within ~5 minutes of a posting going live.`;
+ATS values: ${ATS_NAMES.join(", ")}.`;
+
+const OWNER_ONLY = new Set([
+  "/addkeyword", "/delkeyword", "/addlocation", "/dellocation", "/remote",
+  "/pause", "/resume", "/addcompany", "/delcompany",
+]);
+
+const NOT_OWNER_TEXT = "That command changes the feed for every subscriber, " +
+  "so it's owner-only for now. Send /help for what you can use.";
 
 const WELCOME_TEXT = `👋 <b>You're subscribed to job alerts!</b>
-You'll receive every new posting from the tracked companies — use keyword and location filters to narrow the feed. Note: filters and the company list are shared between all subscribers during this test phase.
+You'll receive every new posting from the tracked companies. Note: during this test phase the keyword and location filters are set by the bot owner and shared by all subscribers — per-user filters are coming.
 
 `;
+
+export function helpFor(isOwner) {
+  return HELP_TEXT + (isOwner ? OWNER_HELP_TEXT : "");
+}
 
 const DEFAULT_CONFIG = {
   filters: { keywords: [], locations: [], remote_only: false, paused: false },
@@ -240,14 +261,15 @@ export async function handleCommand(text, chatId, env, deps) {
       config.subscribers.push(String(chatId));
       await save(`bot: subscribe ${chatId}`);
     }
-    return WELCOME_TEXT + HELP_TEXT;
+    return WELCOME_TEXT + helpFor(isOwner);
   }
 
   if (!isMember) return null; // ignore strangers until they /start
+  if (OWNER_ONLY.has(cmd) && !isOwner) return NOT_OWNER_TEXT;
 
   switch (cmd) {
     case "/help":
-      return HELP_TEXT;
+      return helpFor(isOwner);
 
     case "/stop":
       if (isOwner) return "You're the owner — alerts always go to you.";
