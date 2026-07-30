@@ -1,0 +1,51 @@
+name: NaijaJobs
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"  # every 5 minutes (GitHub's minimum; may drift a few min)
+  workflow_dispatch: {}
+
+# Never let two runs race on the state file
+concurrency:
+  group: naijajobs
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      # GitHub cron can't fire more often than every 5 minutes, so each run
+      # polls 4 times ~45s apart for an effective ~1-min cadence.
+      - name: Run scraper
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          for i in 1 2 3 4; do
+            python -m jobbot
+            if [ "$i" -lt 4 ]; then sleep 45; fi
+          done
+
+      - name: Commit updated state
+        run: |
+          git config user.name "jobbot"
+          git config user.email "jobbot@users.noreply.github.com"
+          git add state/state.json data/jobs.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update state"
+            # -X theirs: on state-file conflicts with a concurrent run's push,
+            # keep this run's version (it was computed from the freshest fetch)
+            git pull --rebase -X theirs origin "${GITHUB_REF_NAME}"
+            git push
+          fi

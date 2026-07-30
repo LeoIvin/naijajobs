@@ -1,0 +1,13 @@
+name = "naijajobs-webhook"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[vars]
+GH_OWNER = "LeoIvin"
+GH_REPO = "naijajobs"
+
+# Secrets (set with `wrangler secret put <NAME>`):
+#   TELEGRAM_BOT_TOKEN — from BotFather
+#   GITHUB_TOKEN       — fine-grained PAT, Contents read/write on this repo only
+#   OWNER_CHAT_ID      — your Telegram chat id
+#   WEBHOOK_SECRET     — any random string; also passed to Telegram setWebhook
