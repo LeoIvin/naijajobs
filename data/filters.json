@@ -1,11 +1,6 @@
 {
  "extra_companies": {},
- "filters": {
-  "keywords": [],
-  "locations": [],
-  "paused": false,
-  "remote_only": false
- },
+ "filters": {},
  "removed_companies": [],
  "subscribers": []
 }
